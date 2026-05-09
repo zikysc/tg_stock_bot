@@ -36,14 +36,12 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
 
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None):
     api: StockAPI = context.bot_data['api']
-    history = await api.get_history(limit=100) 
+    history = await api.get_history(limit=100)
     if not history:
         return await update.message.reply_text("📭 还没有历史记录，说明你还没开始交学费。")
-    
     id_key = get_id_key(history[0])
     if id_key:
         history.sort(key=lambda x: x.get(id_key, 0), reverse=True)
-    
     lines = []
     for h in history:
         code = h.get('stock_code', 'N/A')
@@ -53,7 +51,6 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
         score_str = f" | 情绪{score}分" if score is not None else ""
         advice_str = f" | {advice}" if advice else ""
         lines.append(f"• `{code}` {name}{score_str}{advice_str}")
-    
     msg = f"📋 **历史分析记录 ({len(history)} 条):**\n" + "\n".join(lines[:40])
     await update.message.reply_text(msg, parse_mode="Markdown")
 
@@ -61,7 +58,6 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
 async def cmd_clear(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None, silent=False):
     api: StockAPI = context.bot_data['api']
     cleaned = await clear_old_history(api, CONFIG["keep_count"])
-    
     if not silent:
         if cleaned > 0:
             await update.message.reply_text(f"🧹 已清理 {cleaned} 条旧记录，历史已从系统中抹去。")

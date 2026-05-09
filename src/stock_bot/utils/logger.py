@@ -13,10 +13,8 @@ from datetime import datetime
 
 def setup_logger(name: str = "stock_bot"):
     """配置日志系统：控制台 + 按天归档文件，保留3天"""
-    
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
-    
     # 避免重复添加 handler
     if logger.handlers:
         return logger

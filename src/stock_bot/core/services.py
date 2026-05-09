@@ -36,7 +36,7 @@ async def clear_old_history(api: StockAPI, keep_count: int = 5) -> int:
 
         # 按 ID 降序排序（最新的在前面）
         history.sort(key=lambda x: x.get(id_key, 0), reverse=True)
-        
+
         cleaned_count = 0
 
         if len(history) > keep_count:
