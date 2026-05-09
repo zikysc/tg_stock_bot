@@ -1,0 +1,74 @@
+[project]
+name = "telegram-stock-bot"
+version = "0.1.0"
+description = "基于 daily_stock_analysis 的 Telegram 股票实时智能分析机器人"
+readme = "README.md"
+license = { text = "MIT" }
+target-version = "py39"
+authors = [
+    { name = "Zikyzhang" }
+]
+keywords = ["telegram", "bot", "stock", "A股", "kline", "llm", "daily_stock_analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "License :: OSI Approved :: MIT License",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Framework :: AsyncIO",
+]
+
+dependencies = [
+    "python-telegram-bot==20.8",
+    "httpx>=0.26.0,<0.28.0",
+    "python-dotenv>=1.0.1",
+    # 数据处理与图表
+    "pandas>=1.5.3,<2.2.0",
+    "numpy>=1.24.0,<2.0.0",
+    "matplotlib>=3.7.0",
+    "mplfinance>=0.12.9b7",
+]
+
+[project.urls]
+Homepage = "https://github.com/你的用户名/telegram-stock-bot"
+Repository = "https://github.com/你的用户名/telegram-stock-bot"
+"Bug Tracker" = "https://github.com/你的用户名/telegram-stock-bot/issues"
+Documentation = "https://github.com/你的用户名/telegram-stock-bot/blob/main/README.md"
+
+[project.scripts]
+stock-bot = "stock_bot.main:main"
+
+# ====================== 开发依赖 ======================
+[project.optional-dependencies]
+dev = [
+    "pre-commit>=3.8.0",
+    "detect-secrets>=1.5.0",
+    "ruff>=0.9.0",
+    "bandit>=1.7.0",
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+
+# ====================== Ruff 配置 ======================
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+select = ["E", "F", "B", "C4", "SIM", "I", "UP", "RUF", "W"]
+ignore = [
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.format]
+quote-style = "single"
+indent-style = "space"
+line-ending = "lf"
+
+# ====================== 包查找配置 ======================
+[tool.setuptools.packages.find]
+where = ["src"]
+namespaces = false
