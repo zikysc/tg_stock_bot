@@ -6,8 +6,8 @@ Description: 股票分析命令处理函数
 """
 
 import os
-
 import httpx
+
 from telegram import Update
 from telegram.error import NetworkError, TimedOut
 from telegram.ext import ContextTypes
@@ -26,7 +26,7 @@ async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE, parts
     data = await api.get_quote(stock_code)
     if data:
         cp = float(data.get('change_percent', 0))
-        icon = '🔴' if cp > 0 else '🟢' if cp < 0 else '⚪'
+        icon = '📈' if cp > 0 else '📉' if cp < 0 else '➖'
         text = (
             f'{icon} **{data.get("stock_name")} ({data.get("stock_code")})**\n'
             f'━━━━━━━━━━━━━\n'
