@@ -6,8 +6,8 @@ Description: 股票分析命令处理函数
 """
 
 import os
-import httpx
 
+import httpx
 from telegram import Update
 from telegram.error import NetworkError, TimedOut
 from telegram.ext import ContextTypes
