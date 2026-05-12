@@ -6,6 +6,7 @@ Dispatcher: 启动 Telegram Bot, 并开始轮询消息。
 """
 
 import asyncio
+import contextlib
 
 from telegram.ext import ApplicationBuilder, CommandHandler, ContextTypes, MessageHandler, filters
 
@@ -26,12 +27,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
     # 尝试通知用户
     if update and hasattr(update, 'message') and update.message:
-        try:
+        with contextlib.suppress(Exception):
             await update.message.reply_text(
                 '⚠️ 系统出现异常，已自动记录日志。\n请稍后重试或联系管理员。', parse_mode='Markdown'
             )
-        except Exception:
-            pass  # 防止错误处理器本身崩溃
 
 
 def main():

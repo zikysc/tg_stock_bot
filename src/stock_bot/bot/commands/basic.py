@@ -38,22 +38,47 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
 
 async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None):
     api: StockAPI = context.bot_data['api']
-    history = await api.get_history(limit=100)
+    response = await api.get_history(limit=100)
+
+    if isinstance(response, dict):
+        history = response.get('items', [])
+        total = response.get('total', len(history))
+    else:
+        history = response if isinstance(response, list) else []
+        total = len(history)
+
     if not history:
         return await update.message.reply_text('📭 还没有历史记录，说明你还没开始交学费。')
-    id_key = get_id_key(history[0])
+
+    # 获取排序用的 id_key
+    id_key = None
+    try:
+        if history and isinstance(history[0], dict):
+            id_key = get_id_key(history[0])
+    except Exception as e:
+        logger.warning(f'get_id_key 获取失败: {e}')
+
+    # 排序
     if id_key:
-        history.sort(key=lambda x: x.get(id_key, 0), reverse=True)
+        try:
+            history.sort(key=lambda x: x.get(id_key, 0) if isinstance(x, dict) else 0, reverse=True)
+        except Exception as sort_e:
+            logger.warning(f'history 排序失败: {sort_e}')
+
     lines = []
     for h in history:
+        if not isinstance(h, dict):
+            continue
         code = h.get('stock_code', 'N/A')
         name = h.get('stock_name', '未知')
         score = h.get('sentiment_score')
         advice = h.get('operation_advice', '')
+
         score_str = f' | 情绪{score}分' if score is not None else ''
         advice_str = f' | {advice}' if advice else ''
         lines.append(f'• `{code}` {name}{score_str}{advice_str}')
-    msg = f'📋 **历史分析记录 ({len(history)} 条):**\n' + '\n'.join(lines[:40])
+
+    msg = f'📋 **历史分析记录 ({total} 条):**\n' + '\n'.join(lines[:40])
     await update.message.reply_text(msg, parse_mode='Markdown')
 
 

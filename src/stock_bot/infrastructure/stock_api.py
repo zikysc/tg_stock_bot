@@ -5,7 +5,8 @@ Copyright (c) zikysc. All Rights Reserved.
 Dispatcher: Stock API 客户端，封装了与股票分析系统后端 API 的交互逻辑
 """
 
-from typing import Dict, List, Optional
+from contextlib import suppress
+from typing import Optional
 
 import httpx
 
@@ -22,10 +23,8 @@ class StockAPI:
             if status.status_code != 200 or not status.json().get('is_logged_in'):
                 await self.client.post('/api/v1/auth/login', json={'password': self.password})
         except Exception:
-            try:
+            with suppress(Exception):
                 await self.client.post('/api/v1/auth/login', json={'password': self.password})
-            except:
-                pass
 
     async def is_reachable(self) -> bool:
         try:
@@ -34,7 +33,7 @@ class StockAPI:
         except Exception:
             return False
 
-    async def get_quote(self, stock_code: str) -> Optional[Dict]:
+    async def get_quote(self, stock_code: str) -> Optional[dict]:
         await self.login_if_needed()
         try:
             r = await self.client.get(f'/api/v1/stocks/{stock_code}/quote')
@@ -42,7 +41,7 @@ class StockAPI:
         except Exception:
             return None
 
-    async def get_kline_plot_data(self, stock_code: str, days: int = 120) -> List:
+    async def get_kline_plot_data(self, stock_code: str, days: int = 120) -> list:
         await self.login_if_needed()
         try:
             r = await self.client.get(
@@ -55,7 +54,7 @@ class StockAPI:
         except Exception:
             return []
 
-    async def get_history(self, limit: int = 50) -> List:
+    async def get_history(self, limit: int = 50) -> list:
         await self.login_if_needed()
         try:
             r = await self.client.get('/api/v1/history', params={'limit': limit})

@@ -48,29 +48,37 @@ async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await cmd_list(update, context)
     if cmd_key == 'clear':
         return await cmd_clear(update, context)
+
+    # 需要 API 可达性的检测
+    # 先检查一次 API 状态，避免在每个分支里重复等待
+    is_api_ready = await api.is_reachable()
+
     if cmd_key == 'usage':
+        if not is_api_ready:
+            return await msg.reply_text('🚫 对方不想说话并向你扔了一个 404，行情数据暂时断了。')
         return await cmd_usage(update, context)
+
     if cmd_key == 'market_review':
+        if not is_api_ready:
+            return await msg.reply_text('🚫 盘后回顾暂不可用，行情连接中断。')
         return await cmd_market_review(update, context)
 
-    # price 命令
+    # 业务命令处理
     if cmd_key == 'price' and len(parts) >= 2:
-        if not await api.is_reachable():
+        if not is_api_ready:
             return await msg.reply_text('🚫 对方不想说话并向你扔了一个 404，行情数据暂时断了。')
         return await handle_price(update, context, parts)
 
-    # kline 命令
     if cmd_key == 'kline' and len(parts) >= 2:
-        if not await api.is_reachable():
+        if not is_api_ready:
             return await msg.reply_text('🚫 接口翻车了，主力可能把网线拔了，K线图画不出来。')
         return await handle_kline(update, context, parts)
 
     # 默认个股分析
-    if len(parts) >= 2:
-        if cmd_key not in ['help', 'clear', 'usage', 'price', 'kline', 'market_review']:
-            if not await api.is_reachable():
-                return await msg.reply_text('🚫 分析任务启动失败，网关那边似乎没什么反应，你可以晚点再来看结果。')
-            return await handle_analysis(update, context, parts)
+    if len(parts) >= 2 and cmd_key not in ['help', 'clear', 'usage', 'price', 'kline', 'market_review']:
+        if not await api.is_reachable():
+            return await msg.reply_text('🚫 分析任务启动失败，网关那边似乎没什么反应，你可以晚点再来看结果。')
+        return await handle_analysis(update, context, parts)
 
     await msg.reply_text(
         f'❌ 看不懂这个指令: `{cmd_key}`，你在考验我还是市场？执行 `@{bot_name} help` 看看我都能干啥吧！'
