@@ -7,7 +7,9 @@ Description: 股票分析命令处理函数
 
 import os
 
+import httpx
 from telegram import Update
+from telegram.error import NetworkError, TimedOut
 from telegram.ext import ContextTypes
 
 from src.stock_bot.bot.commands.basic import cmd_clear
@@ -61,13 +63,24 @@ async def handle_kline(update: Update, context: ContextTypes.DEFAULT_TYPE, parts
 async def handle_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, parts):
     api: StockAPI = context.bot_data['api']
     code, name = parts[0], ' '.join(parts[1:])
-    status_msg = await update.message.reply_text(f'🚀 正在对 {name} 正在评估你是价值投资还是情绪选手')
+    status_msg = await update.message.reply_text(f'🚀 正在对 {name} 进行分析, 同时评估你是价值投资还是情绪选手')
     try:
         resp = await api.analyze(code, name)
+
         if resp.status_code in [200, 202]:
             await cmd_clear(update, context, silent=True)
             await status_msg.edit_text(f'✅ **{name}** 已提交分析，请耐心等待市场教育结果。别催，再催就自我毁灭了哦！')
         else:
             await status_msg.edit_text(f'❌ 接口翻车了 (状态码: {resp.status_code})，这波不怪你。')
+
+    except (TimedOut, TimeoutError, httpx.ReadTimeout, httpx.TimeoutException):
+        logger.warning(f'分析请求超时: {code} - {name}')
+        await status_msg.edit_text(f'⏳ **{name}** 分析任务已经提交，后台仍在处理中，请稍后再查看结果。')
+
+    except NetworkError as e:
+        logger.error(f'分析请求网络异常: {code} - {name} - {e}')
+        await status_msg.edit_text(f'🌐 网络异常: {e}')
+
     except Exception as e:
+        logger.exception(f'分析请求失败: {code} - {name}')
         await status_msg.edit_text(f'❌ 提交异常: {e}')
