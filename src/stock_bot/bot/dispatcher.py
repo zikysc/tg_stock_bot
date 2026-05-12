@@ -56,7 +56,8 @@ async def handle_mention(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if cmd_key == 'usage':
         if not is_api_ready:
             return await msg.reply_text('🚫 对方不想说话并向你扔了一个 404，行情数据暂时断了。')
-        return await cmd_usage(update, context)
+        # 传递参数：parts[1:] 包含命令后面的所有参数
+        return await cmd_usage(update, context, args=parts[1:])
 
     if cmd_key == 'market_review':
         if not is_api_ready:
