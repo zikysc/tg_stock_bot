@@ -13,9 +13,11 @@ from telegram.ext import ContextTypes
 from src.stock_bot.infrastructure.stock_api import StockAPI
 from src.stock_bot.utils.logger import setup_logger
 
-from .commands.admins import cmd_market_review, cmd_usage
-from .commands.analysis import handle_analysis, handle_kline, handle_price
-from .commands.basic import cmd_clear, cmd_help, cmd_list
+from .commands.analysis import cmd_market_review, handle_analysis
+from .commands.basic import cmd_help
+from .commands.history import cmd_clear, cmd_list
+from .commands.stocks import handle_kline, handle_price
+from .commands.usages import cmd_usage
 
 logger = setup_logger('dispatcher')
 

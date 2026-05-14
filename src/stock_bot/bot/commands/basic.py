@@ -1,23 +1,18 @@
 """
 Telegram Stock Analysis Bot
 Copyright (c) zikysc. All Rights Reserved.
-
-Description: 基本命令处理函数
 """
 
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.stock_bot.config.settings import CONFIG
-from src.stock_bot.core.services import clear_old_history, get_id_key
-from src.stock_bot.infrastructure.stock_api import StockAPI
 from src.stock_bot.utils.logger import setup_logger
 
 logger = setup_logger('commands.basic')
 
 COMMAND_DOCS = {
     'help': '显示帮助菜单',
-    'usage': '今日大模型 Token 消耗统计',
+    'usage': '获取大模型消耗统计[today|month|all]',
     'list': '查看个股历史分析记录',
     'price <代码>': '实时价格行情查询',
     'kline <代码>': '获取个股 K 线图',
@@ -34,59 +29,3 @@ async def cmd_help(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
         + '\n'.join([f'• `@{bot_name} {k}`: {v}' for k, v in COMMAND_DOCS.items()])
     )
     await update.message.reply_text(help_text, parse_mode='Markdown')
-
-
-async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None):
-    api: StockAPI = context.bot_data['api']
-    response = await api.get_history(limit=100)
-
-    if isinstance(response, dict):
-        history = response.get('items', [])
-        total = response.get('total', len(history))
-    else:
-        history = response if isinstance(response, list) else []
-        total = len(history)
-
-    if not history:
-        return await update.message.reply_text('📭 还没有历史记录，说明你还没开始交学费。')
-
-    # 获取排序用的 id_key
-    id_key = None
-    try:
-        if history and isinstance(history[0], dict):
-            id_key = get_id_key(history[0])
-    except Exception as e:
-        logger.warning(f'get_id_key 获取失败: {e}')
-
-    # 排序
-    if id_key:
-        try:
-            history.sort(key=lambda x: x.get(id_key, 0) if isinstance(x, dict) else 0, reverse=True)
-        except Exception as sort_e:
-            logger.warning(f'history 排序失败: {sort_e}')
-
-    lines = []
-    for h in history:
-        if not isinstance(h, dict):
-            continue
-        code = h.get('stock_code', 'N/A')
-        name = h.get('stock_name', '未知')
-        score = h.get('sentiment_score')
-        advice = h.get('operation_advice', '')
-
-        score_str = f' | 情绪{score}分' if score is not None else ''
-        advice_str = f' | {advice}' if advice else ''
-        lines.append(f'• `{code}` {name}{score_str}{advice_str}')
-
-    msg = f'📋 **历史分析记录 ({total} 条):**\n' + '\n'.join(lines[:40])
-    await update.message.reply_text(msg, parse_mode='Markdown')
-
-
-async def cmd_clear(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None, silent=False):
-    api: StockAPI = context.bot_data['api']
-    cleaned = await clear_old_history(api, CONFIG['keep_count'])
-    if not silent:
-        if cleaned > 0:
-            await update.message.reply_text(f'🧹 已清理 {cleaned} 条旧记录，历史已从系统中抹去。')
-        else:
-            await update.message.reply_text(f'✨ 当前只有 {cleaned} 条记录，还不够成为故事。')

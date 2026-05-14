@@ -1,63 +1,17 @@
 """
 Telegram Stock Analysis Bot
 Copyright (c) zikysc. All Rights Reserved.
-
-Description: 股票分析命令处理函数
 """
-
-import os
 
 import httpx
 from telegram import Update
 from telegram.error import NetworkError, TimedOut
 from telegram.ext import ContextTypes
 
-from src.stock_bot.bot.commands.basic import cmd_clear
 from src.stock_bot.infrastructure.stock_api import StockAPI
-from src.stock_bot.utils.chart import generate_candlestick_image
 from src.stock_bot.utils.logger import setup_logger
 
 logger = setup_logger('commands.analysis')
-
-
-async def handle_price(update: Update, context: ContextTypes.DEFAULT_TYPE, parts):
-    api: StockAPI = context.bot_data['api']
-    stock_code = parts[1]
-    data = await api.get_quote(stock_code)
-    if data:
-        cp = float(data.get('change_percent', 0))
-        icon = '📈' if cp > 0 else '📉' if cp < 0 else '➖'
-        text = (
-            f'{icon} **{data.get("stock_name")} ({data.get("stock_code")})**\n'
-            f'━━━━━━━━━━━━━\n'
-            f'💰 **现价：{data.get("current_price")}** ({cp}%)\n'
-            f'🌅 开盘：{data.get("open")}  高：{data.get("high")}  低：{data.get("low")}\n'
-            f'📊 成交量：{int(data.get("volume", 0)):,}'
-        )
-        await update.message.reply_text(text, parse_mode='Markdown')
-    else:
-        await update.message.reply_text('❌ 行情数据暂时‘罢工’，系统翻遍了也没找到可用结果。')
-
-
-async def handle_kline(update: Update, context: ContextTypes.DEFAULT_TYPE, parts):
-    api: StockAPI = context.bot_data['api']
-    stock_code = parts[1]
-    status_msg = await update.message.reply_text(f'🚀 正在抓取 {stock_code} 的K线数据…主力也在盯盘中... 快要画冒烟了')
-    k_data = await api.get_kline_plot_data(stock_code, 120)
-    img_path = generate_candlestick_image(stock_code, k_data, 60)
-
-    if img_path and os.path.exists(img_path):
-        with open(img_path, 'rb') as f:
-            await context.bot.send_photo(
-                chat_id=update.message.chat_id,
-                photo=f,
-                caption=f'📈 {stock_code} K线图 (仅供参考)',
-                reply_to_message_id=update.message.message_id,
-            )
-        await status_msg.delete()
-        os.remove(img_path)
-    else:
-        await status_msg.edit_text(f'💥 {stock_code} K 线图没画出来，可能行情自己都看不懂。')
 
 
 async def handle_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, parts):
@@ -68,7 +22,6 @@ async def handle_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
         resp = await api.analyze(code, name)
 
         if resp.status_code in [200, 202]:
-            await cmd_clear(update, context, silent=True)
             await status_msg.edit_text(f'✅ **{name}** 已提交分析，请耐心等待市场教育结果。别催，再催就自我毁灭了哦！')
         else:
             await status_msg.edit_text(f'❌ 接口翻车了 (状态码: {resp.status_code})，这波不怪你。')
@@ -84,3 +37,42 @@ async def handle_analysis(update: Update, context: ContextTypes.DEFAULT_TYPE, pa
     except Exception as e:
         logger.exception(f'分析请求失败: {code} - {name}')
         await status_msg.edit_text(f'❌ 提交异常: {e}')
+
+
+async def cmd_market_review(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None):
+    logger.info('market_review 命令被调用')
+
+    api: StockAPI = context.bot_data.get('api')
+    if not api:
+        return await update.message.reply_text('❌ 系统还没准备好，像极了开盘前的你。')
+
+    status_msg = await update.message.reply_text('🚀 正在启动(缅A)大盘复盘任务，看看今天是谁在收割情绪...')
+
+    try:
+        # 调用 API 触发任务
+        result = await api.trigger_market_review(send_notification=True)
+
+        if result['success']:
+            data = result['data']
+            task_id = data.get('task_id', 'unknown')
+
+            logger.info(f'大盘复盘任务提交成功 | task_id: {task_id}')
+
+            await status_msg.edit_text(
+                f'✅ **大盘复盘任务已成功提交**\n\n'
+                f'**任务ID**: `{task_id}`\n'
+                f'**状态**: {data.get("status", "accepted")}\n'
+                f'**通知**: {"已开启" if data.get("send_notification") else "关闭"}\n\n'
+                '任务将在后台异步执行，你可以稍后通过 `/tasks` 查看进度。',
+                parse_mode='Markdown',
+            )
+        else:
+            logger.error(f'API 调用失败: {result.get("error")}')
+            await status_msg.edit_text(
+                f'❌ 提交任务失败\n\n状态码: `{result.get("status_code")}`\n错误信息: `{result.get("error")[:500]}`',
+                parse_mode='Markdown',
+            )
+
+    except Exception as e:
+        logger.error(f'触发 market_review 异常: {e}', exc_info=True)
+        await status_msg.edit_text(f'💥 提交任务时发生异常：{e!s}', parse_mode='Markdown')

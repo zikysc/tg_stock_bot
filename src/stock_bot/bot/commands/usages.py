@@ -1,8 +1,6 @@
 """
 Telegram Stock Analysis Bot
 Copyright (c) zikysc. All Rights Reserved.
-
-Description: 管理员命令处理函数
 """
 
 from telegram import Update
@@ -125,42 +123,3 @@ async def cmd_usage(update: Update, context: ContextTypes.DEFAULT_TYPE, args=Non
     except Exception as e:
         logger.error(f'cmd_usage 异常: {e}', exc_info=True)
         await update.message.reply_text(f'💥 系统异常：`{e!s}`', parse_mode='Markdown')
-
-
-async def cmd_market_review(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None):
-    logger.info('market_review 命令被调用')
-
-    api: StockAPI = context.bot_data.get('api')
-    if not api:
-        return await update.message.reply_text('❌ 系统还没准备好，像极了开盘前的你。')
-
-    status_msg = await update.message.reply_text('🚀 正在启动(缅A)大盘复盘任务，看看今天是谁在收割情绪...')
-
-    try:
-        # 调用 API 触发任务
-        result = await api.trigger_market_review(send_notification=True)
-
-        if result['success']:
-            data = result['data']
-            task_id = data.get('task_id', 'unknown')
-
-            logger.info(f'大盘复盘任务提交成功 | task_id: {task_id}')
-
-            await status_msg.edit_text(
-                f'✅ **大盘复盘任务已成功提交**\n\n'
-                f'**任务ID**: `{task_id}`\n'
-                f'**状态**: {data.get("status", "accepted")}\n'
-                f'**通知**: {"已开启" if data.get("send_notification") else "关闭"}\n\n'
-                '任务将在后台异步执行，你可以稍后通过 `/tasks` 查看进度。',
-                parse_mode='Markdown',
-            )
-        else:
-            logger.error(f'API 调用失败: {result.get("error")}')
-            await status_msg.edit_text(
-                f'❌ 提交任务失败\n\n状态码: `{result.get("status_code")}`\n错误信息: `{result.get("error")[:500]}`',
-                parse_mode='Markdown',
-            )
-
-    except Exception as e:
-        logger.error(f'触发 market_review 异常: {e}', exc_info=True)
-        await status_msg.edit_text(f'💥 提交任务时发生异常：{e!s}', parse_mode='Markdown')
