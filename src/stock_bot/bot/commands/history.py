@@ -44,19 +44,12 @@ async def _clear_old_history(api: StockAPI, keep_count: int = 5) -> int:
             return 0
 
         # 按 ID 倒序（最新在前）
-        history.sort(
-            key=lambda x: x.get(id_key, 0) if isinstance(x, dict) else 0,
-            reverse=True
-        )
+        history.sort(key=lambda x: x.get(id_key, 0) if isinstance(x, dict) else 0, reverse=True)
 
         cleaned_count = 0
 
         if len(history) > keep_count:
-            old_ids = [
-                x.get(id_key)
-                for x in history[keep_count:]
-                if isinstance(x, dict) and x.get(id_key)
-            ]
+            old_ids = [x.get(id_key) for x in history[keep_count:] if isinstance(x, dict) and x.get(id_key)]
 
             logger.info(f'准备删除 {len(old_ids)} 条旧记录')
 
@@ -65,9 +58,7 @@ async def _clear_old_history(api: StockAPI, keep_count: int = 5) -> int:
                 cleaned_count = len(old_ids)
                 logger.info(f'✅ 成功清理 {cleaned_count} 条记录')
         else:
-            logger.info(
-                f'当前只有 {len(history)} 条记录，未达到清理阈值 ({keep_count} 条)'
-            )
+            logger.info(f'当前只有 {len(history)} 条记录，未达到清理阈值 ({keep_count} 条)')
 
         return cleaned_count
 
@@ -88,9 +79,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
         total = len(history)
 
     if not history:
-        return await update.message.reply_text(
-            '📭 还没有历史记录，说明你还没开始交学费。'
-        )
+        return await update.message.reply_text('📭 还没有历史记录，说明你还没开始交学费。')
 
     # 获取排序用的 id_key
     id_key = None
@@ -104,10 +93,7 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
     # 排序
     if id_key:
         try:
-            history.sort(
-                key=lambda x: x.get(id_key, 0) if isinstance(x, dict) else 0,
-                reverse=True
-            )
+            history.sort(key=lambda x: x.get(id_key, 0) if isinstance(x, dict) else 0, reverse=True)
         except Exception as sort_e:
             logger.warning(f'history 排序失败: {sort_e}')
 
@@ -125,32 +111,20 @@ async def cmd_list(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None
         score_str = f' | 情绪{score}分' if score is not None else ''
         advice_str = f' | {advice}' if advice else ''
 
-        lines.append(
-            f'• `{code}` {name}{score_str}{advice_str}'
-        )
+        lines.append(f'• `{code}` {name}{score_str}{advice_str}')
 
     msg = f'📋 **历史分析记录 ({total} 条):**\n' + '\n'.join(lines[:40])
 
-    await update.message.reply_text(
-        msg,
-        parse_mode='Markdown'
-    )
+    await update.message.reply_text(msg, parse_mode='Markdown')
 
 
 async def cmd_clear(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None, silent=False):
     api: StockAPI = context.bot_data['api']
 
-    cleaned = await _clear_old_history(
-        api,
-        CONFIG['keep_count']
-    )
+    cleaned = await _clear_old_history(api, CONFIG['keep_count'])
 
     if not silent:
         if cleaned > 0:
-            await update.message.reply_text(
-                f'🧹 已清理 {cleaned} 条旧记录，历史已从系统中抹去。'
-            )
+            await update.message.reply_text(f'🧹 已清理 {cleaned} 条旧记录，历史已从系统中抹去。')
         else:
-            await update.message.reply_text(
-                f'✨ 当前只有 {cleaned} 条记录，还不够成为故事。'
-            )
+            await update.message.reply_text(f'✨ 当前只有 {cleaned} 条记录，还不够成为故事。')
