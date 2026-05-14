@@ -5,12 +5,9 @@ Copyright (c) zikysc. All Rights Reserved.
 Description: 管理员命令处理函数
 """
 
-import subprocess
-
 from telegram import Update
 from telegram.ext import ContextTypes
 
-from src.stock_bot.config.settings import CONFIG
 from src.stock_bot.infrastructure.stock_api import StockAPI
 from src.stock_bot.utils.logger import setup_logger
 
@@ -131,38 +128,39 @@ async def cmd_usage(update: Update, context: ContextTypes.DEFAULT_TYPE, args=Non
 
 
 async def cmd_market_review(update: Update, context: ContextTypes.DEFAULT_TYPE, args=None):
-    user_id = str(update.message.from_user.id)
-    logger.info(f'market_review 命令被调用 | 用户ID: {user_id}')
+    logger.info('market_review 命令被调用')
 
-    if CONFIG.get('admin_ids') and user_id not in CONFIG.get('admin_ids', []):
-        logger.warning(f'非管理员尝试执行 market_review | 用户ID: {user_id}')
-        return await update.message.reply_text(f'🚫 抱歉，你没有管理员权限。(ID: {user_id})')
+    api: StockAPI = context.bot_data.get('api')
+    if not api:
+        return await update.message.reply_text('❌ 系统还没准备好，像极了开盘前的你。')
 
-    logger.info('权限校验通过，开始执行大盘复盘任务')
-    status_msg = await update.message.reply_text('🐳 正在启动(缅A)大盘复盘任务，看看今天是谁在收割情绪')
-    docker_cmd = ['docker', 'exec', 'stock-server', 'python', 'main.py', '--market-review']
-    logger.info(f'执行 Docker 命令: {" ".join(docker_cmd)}')
+    status_msg = await update.message.reply_text('🚀 正在启动(缅A)大盘复盘任务，看看今天是谁在收割情绪...')
+
     try:
-        process = subprocess.Popen(docker_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        logger.info('Docker 进程已启动，等待执行结果...')
+        # 调用 API 触发任务
+        result = await api.trigger_market_review(send_notification=True)
 
-        try:
-            stdout, stderr = process.communicate(timeout=600)
-            if stdout:
-                for line in stdout.splitlines():
-                    if line.strip():
-                        logger.info(line.strip())
-            if process.returncode == 0:
-                logger.info('大盘复盘任务执行成功')
-                await status_msg.edit_text(
-                    f'✅ **复盘任务已完成！**\n\n终端输出：\n`{stdout[-500:]}`', parse_mode='Markdown'
-                )
-            else:
-                logger.error(f'任务执行失败，返回码: {process.returncode}')
-                await status_msg.edit_text(f'❌ 任务出错：\n`{stderr}`', parse_mode='Markdown')
-        except subprocess.TimeoutExpired:
-            logger.warning('大盘复盘任务执行超时')
-            await status_msg.edit_text('⏳ 任务还在跑，市场也还在演，你可以晚点再来看结果')
+        if result['success']:
+            data = result['data']
+            task_id = data.get('task_id', 'unknown')
+
+            logger.info(f'大盘复盘任务提交成功 | task_id: {task_id}')
+
+            await status_msg.edit_text(
+                f'✅ **大盘复盘任务已成功提交**\n\n'
+                f'**任务ID**: `{task_id}`\n'
+                f'**状态**: {data.get("status", "accepted")}\n'
+                f'**通知**: {"已开启" if data.get("send_notification") else "关闭"}\n\n'
+                '任务将在后台异步执行，你可以稍后通过 `/tasks` 查看进度。',
+                parse_mode='Markdown',
+            )
+        else:
+            logger.error(f'API 调用失败: {result.get("error")}')
+            await status_msg.edit_text(
+                f'❌ 提交任务失败\n\n状态码: `{result.get("status_code")}`\n错误信息: `{result.get("error")[:500]}`',
+                parse_mode='Markdown',
+            )
+
     except Exception as e:
-        logger.error(f'执行 market_review 异常: {e}', exc_info=True)
-        await status_msg.edit_text(f'💥 调度失败: {e!s}')
+        logger.error(f'触发 market_review 异常: {e}', exc_info=True)
+        await status_msg.edit_text(f'💥 提交任务时发生异常：{e!s}', parse_mode='Markdown')

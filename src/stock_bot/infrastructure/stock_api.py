@@ -33,6 +33,22 @@ class StockAPI:
         except Exception:
             return False
 
+    async def trigger_market_review(self, send_notification: bool = True) -> dict:
+        """
+        通过 API 触发大盘复盘任务（推荐方式）
+        """
+        await self.login_if_needed()
+        try:
+            payload = {'send_notification': send_notification}
+            r = await self.client.post('/api/v1/analysis/market-review', json=payload)
+
+            if r.status_code in (200, 202):
+                return {'success': True, 'status_code': r.status_code, 'data': r.json()}
+            else:
+                return {'success': False, 'status_code': r.status_code, 'error': r.text}
+        except Exception as e:
+            return {'success': False, 'error': str(e)}
+
     async def get_quote(self, stock_code: str) -> Optional[dict]:
         await self.login_if_needed()
         try:
